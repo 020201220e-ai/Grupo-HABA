@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto Machine Learning: Titanic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,700;1,300&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        
+        h1, h2, h3, h4, .font-serif-title {
+            font-family: 'Merriweather', serif;
+        }
+
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes drawLine { to { stroke-dashoffset: 0; } }
+        .roc-curve {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: drawLine 2s ease-out forwards;
+        }
+
+        /* Estilos específicos para el simulador */
+        input[type=range] {
+            accent-color: #3b82f6;
+        }
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .thinking { animation: pulse-fast 0.5s infinite; }
+    </style>
+</head>
+<body class="py-10 px-4 md:px-8">
+
+    <div class="max-w-6xl mx-auto space-y-12">
+        
+        <!-- HEADER -->
+        <header class="bg-slate-900 text-white rounded-[2rem] p-10 md:p-16 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
+            <div class="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500 rounded-full blur-[100px] opacity-20 pointer-events-none"></div>
+            
+            <div class="relative z-10">
+                <span class="text-blue-400 font-bold tracking-widest uppercase text-sm mb-4 block flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap"></i> Proyecto de Evaluación
+                </span>
+                <h1 class="text-4xl md:text-5xl font-bold mb-6 leading-tight font-serif-title">Análisis Predictivo: Árbol de Decisión vs Random Forest</h1>
+                <p class="text-slate-300 text-lg leading-relaxed max-w-3xl">
+                    Reporte técnico estructurado sobre la resolución de un problema de clasificación utilizando el dataset del Titanic.    
+                </p>
+                <p>
+                    Morales Ttito Honorio, Torres Caceres Sayo Michael, Zavaleta Luna Sebastian. 
+                </p>
+            </div>
+            <i class="fa-solid fa-ship text-[15rem] absolute -bottom-10 -right-10 text-white opacity-5 transform -rotate-12"></i>
+        </header>
+
+        <!-- 1. INTRODUCCIÓN -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 border-l-8 border-l-blue-500">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xl font-bold">1</div>
+                <h2 class="text-2xl font-bold font-serif-title text-slate-800">Introducción (10%)</h2>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-8 text-slate-600 leading-relaxed">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-2">El Problema y el Dataset</h3>
+                    <p class="mb-4">
+                        Para este proyecto, utilizamos el famoso <strong>dataset del Titanic</strong>. El objetivo es resolver un <strong>problema de clasificación binaria</strong>: predecir si un pasajero sobrevivió (1) o no sobrevivió (0) al hundimiento basándonos en sus características personales (edad, género, clase del billete, etc.).
+                    </p>
+                    <p>
+                        Observamos una tasa de supervivencia base (baseline) del <strong>38.4%</strong> en los datos originales.
+                    </p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-2">Justificación y Desafíos</h3>
+                    <p class="mb-4">
+                        Este dataset es ideal para la tarea porque imita escenarios del mundo real donde las reglas subyacentes (ej. "mujeres y niños primero") deben ser descubiertas algorítmicamente.
+                    </p>
+                    <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm text-amber-900">
+                        <strong>Desafíos esperados:</strong>
+                        <ul class="list-disc pl-5 mt-2 space-y-1">
+                            <li><strong>Datos faltantes:</strong> Especialmente en columnas cruciales como la Edad.</li>
+                            <li><strong>Variables categóricas:</strong> Necesidad de convertir texto (género, puerto) a formato numérico.</li>
+                            <li><strong>Desbalance de clases:</strong> Hay más fallecidos que sobrevivientes, lo que puede sesgar el modelo.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. PREPROCESAMIENTO -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 border-l-8 border-l-teal-500">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center text-xl font-bold">2</div>
+                <h2 class="text-2xl font-bold font-serif-title text-slate-800">Preprocesamiento de Datos (20%)</h2>
+            </div>
+            
+            <p class="text-slate-600 mb-6">Para garantizar que los modelos de Machine Learning funcionen correctamente, los datos fueron sometidos a un riguroso proceso de limpieza y preparación:</p>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                    <div class="text-teal-500 text-3xl mb-3"><i class="fa-solid fa-droplet-slash"></i></div>
+                    <h3 class="font-bold text-slate-800 mb-2">1. Manejo de Valores Faltantes</h3>
+                    <p class="text-sm text-slate-600">Se identificaron valores nulos significativos en la variable <code>Age</code> (Edad). Se utilizó la <strong>mediana</strong> de las edades para rellenar estos huecos, evitando el sesgo que podrían causar valores atípicos (outliers) si se usara la media. Las columnas con demasiados nulos (como <code>Cabin</code>) fueron eliminadas.</p>
+                </div>
+                
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                    <div class="text-teal-500 text-3xl mb-3"><i class="fa-solid fa-code-merge"></i></div>
+                    <h3 class="font-bold text-slate-800 mb-2">2. Codificación Categórica</h3>
+                    <p class="text-sm text-slate-600">Los algoritmos solo entienden números. Variables categóricas como el género (<code>Sex</code>) y el puerto de embarque (<code>Embarked</code>) fueron transformadas utilizando técnicas como variables <em>Dummy / One-Hot Encoding</em> (ej. Mujer = 1, Hombre = 0).</p>
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                    <div class="text-teal-500 text-3xl mb-3"><i class="fa-solid fa-scissors"></i></div>
+                    <h3 class="font-bold text-slate-800 mb-2">3. División de los Datos</h3>
+                    <p class="text-sm text-slate-600">El dataset se dividió en dos subconjuntos: uno de <strong>Entrenamiento (Train)</strong> para que el modelo aprenda los patrones, y uno de <strong>Prueba (Test)</strong>, con datos que el modelo nunca ha visto, para evaluar su rendimiento real de forma objetiva.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. CONSTRUCCIÓN DE MODELOS -->
+        <section class="bg-white rounded-2xl p-8 shadow-sm border border-slate-200 border-l-8 border-l-indigo-500">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold">3</div>
+                <h2 class="text-2xl font-bold font-serif-title text-slate-800">Construcción y Entrenamiento de Modelos (20%)</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Árbol de Decisión -->
+                <div class="border border-slate-200 rounded-xl p-6 bg-white shadow-sm relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 text-8xl text-indigo-50 opacity-50"><i class="fa-solid fa-network-wired"></i></div>
+                    <h3 class="text-xl font-bold text-indigo-700 mb-3 relative z-10">Árbol de Decisión (Decision Tree)</h3>
+                    <p class="text-slate-600 text-sm mb-4 relative z-10">
+                        Este modelo funciona dividiendo recursivamente los datos basándose en las características más importantes (Feature Importance), como <code>Sex</code> y <code>Pclass</code>, creando reglas si/entonces.
+                    </p>
+                    <div class="bg-indigo-50 p-4 rounded-lg relative z-10">
+                        <strong class="text-indigo-900 text-sm block mb-1">Configuración e Hiperparámetros:</strong>
+                        <code class="text-indigo-600 font-bold bg-white px-2 py-1 rounded shadow-sm">max_depth = 3</code>
+                        <p class="text-xs text-indigo-800 mt-2">
+                            Ajustamos la profundidad máxima del árbol a 3. Esto es crucial para <strong>evitar el sobreajuste (overfitting)</strong>. Si dejamos que el árbol crezca infinitamente, memorizará los datos de entrenamiento en lugar de aprender patrones generalizables.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Random Forest -->
+                <div class="border border-slate-200 rounded-xl p-6 bg-white shadow-sm relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 text-8xl text-emerald-50 opacity-50"><i class="fa-solid fa-tree-city"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-700 mb-3 relative z-10">Random Forest (Bosque Aleatorio)</h3>
+                    <p class="text-slate-600 text-sm mb-4 relative z-10">
+                        Es un método de <strong>"ensamble de árboles"</strong>. En lugar de confiar en un solo árbol de decisión que puede equivocarse, construye múltiples árboles independientes y hace que "voten" por la predicción final. La mayoría decide.
+                    </p>
+                    <div class="bg-emerald-50 p-4 rounded-lg relative z-10">
+                        <strong class="text-emerald-900 text-sm block mb-1">Configuración e Hiperparámetros:</strong>
+                        <code class="text-emerald-600 font-bold bg-white px-2 py-1 rounded shadow-sm">n_estimators = 100</code>
+                        <p class="text-xs text-emerald-800 mt-2">
+                            Configuramos el modelo para utilizar 100 árboles distintos. Cada árbol se entrena con un subconjunto aleatorio de datos y características. Esta naturaleza de ensamble reduce drásticamente la varianza y mejora la generalización.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. EVALUACIÓN Y COMPARACIÓN -->
+        <section class="bg-white rounded-2xl p-8 shadow-md border border-slate-200 border-l-8 border-l-rose-500">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-xl font-bold">4</div>
+                <h2 class="text-2xl font-bold font-serif-title text-slate-800">Evaluación y Comparación de Modelos (30%)</h2>
+            </div>
+            
+            <p class="text-slate-500 italic text-sm mb-8">* Nota: Al ser un problema de clasificación (sobrevive/no sobrevive), no aplicamos métricas de regresión (MAE, MSE, etc.). Evaluamos exclusivamente con métricas de clasificación.</p>
+
+            <div class="space-y-10">
+                
+                <!-- A. Matriz de Confusión -->
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-table-cells text-rose-500 mr-2"></i> A. Matriz de Confusión</h3>
+                    <div class="grid md:grid-cols-2 gap-8 items-center">
+                        <div>
+                            <p class="text-slate-600 text-sm mb-4">La matriz evalúa los aciertos y errores en 4 cuadrantes. En el contexto del Titanic, significan:</p>
+                            <ul class="space-y-3 text-sm">
+                                <li class="flex items-start gap-2"><span class="bg-green-100 text-green-700 px-2 rounded font-bold">VP</span> <strong>Verdaderos Positivos:</strong> El modelo predijo que sobrevivía, y en realidad <strong>sobrevivió</strong>.</li>
+                                <li class="flex items-start gap-2"><span class="bg-slate-100 text-slate-700 px-2 rounded font-bold">VN</span> <strong>Verdaderos Negativos:</strong> Predijo que fallecía, y en realidad <strong>falleció</strong>.</li>
+                                <li class="flex items-start gap-2"><span class="bg-rose-100 text-rose-700 px-2 rounded font-bold">FP</span> <strong>Falsos Positivos:</strong> Predijo que sobrevivía, pero en realidad <strong>falleció</strong>.</li>
+                                <li class="flex items-start gap-2"><span class="bg-amber-100 text-amber-700 px-2 rounded font-bold">FN</span> <strong>Falsos Negativos:</strong> Predijo que fallecía, pero en realidad <strong>¡sobrevivió!</strong></li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center flex flex-col items-center justify-center">
+                            <span class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-2">Estructura de la Matriz</span>
+                            <div class="grid grid-cols-2 gap-2 w-full max-w-xs">
+                                <div class="bg-green-500 text-white p-3 rounded">VP (Acierto)</div>
+                                <div class="bg-rose-400 text-white p-3 rounded">FP (Error)</div>
+                                <div class="bg-amber-400 text-white p-3 rounded">FN (Error Grave)</div>
+                                <div class="bg-slate-400 text-white p-3 rounded">VN (Acierto)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- B. Métricas de Rendimiento -->
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2"><i class="fa-solid fa-chart-bar text-rose-500 mr-2"></i> B. Métricas de Rendimiento</h3>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- Accuracy -->
+                        <div class="metric-card bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            <h4 class="font-bold text-slate-700 mb-2">Precisión Global (Accuracy)</h4>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">DT</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-slate-500 h-full rounded" style="width: 79.89%"></div></div><span class="font-mono text-sm font-bold">79.89%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">RF</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-indigo-500 h-full rounded" style="width: 82.12%"></div></div><span class="font-mono text-sm font-bold text-indigo-600">82.12%</span></div>
+                            </div>
+                            <p class="text-xs text-slate-600"><strong>¿Es adecuada?</strong> Mide el porcentaje total de aciertos. Es útil, pero en datasets desbalanceados (más fallecidos que vivos), guiarse solo por el Accuracy puede ser engañoso. Necesitamos otras métricas.</p>
+                        </div>
+
+                        <!-- Precision -->
+                        <div class="metric-card bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            <h4 class="font-bold text-slate-700 mb-2">Precisión (Precision)</h4>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">DT</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-slate-500 h-full rounded" style="width: 79.69%"></div></div><span class="font-mono text-sm font-bold">79.69%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">RF</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-indigo-500 h-full rounded" style="width: 80.00%"></div></div><span class="font-mono text-sm font-bold text-indigo-600">80.00%</span></div>
+                            </div>
+                            <p class="text-xs text-slate-600">De todos los que el modelo predijo como "Sobrevivientes", ¿cuántos realmente lo fueron? Importante para no dar falsas esperanzas (reducir FP).</p>
+                        </div>
+
+                        <!-- Recall -->
+                        <div class="metric-card bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            <div class="flex justify-between items-center mb-2"><h4 class="font-bold text-slate-700">Exhaustividad (Recall)</h4> <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">CLAVE</span></div>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">DT</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-slate-500 h-full rounded" style="width: 68.92%"></div></div><span class="font-mono text-sm font-bold">68.92%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">RF</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-emerald-500 h-full rounded" style="width: 75.68%"></div></div><span class="font-mono text-sm font-bold text-emerald-600">75.68%</span></div>
+                            </div>
+                            <p class="text-xs text-slate-600">De todos los sobrevivientes reales en el barco, ¿cuántos logró detectar el modelo? <strong>El Recall es vital aquí</strong>: es peor no detectar a alguien que sí sobrevivió (Falso Negativo).</p>
+                        </div>
+
+                        <!-- F1-Score -->
+                        <div class="metric-card bg-slate-50 p-5 rounded-xl border border-slate-200">
+                            <h4 class="font-bold text-slate-700 mb-2">Puntuación F1 (F1-Score)</h4>
+                            <div class="space-y-2 mb-3">
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">DT</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-slate-500 h-full rounded" style="width: 73.91%"></div></div><span class="font-mono text-sm font-bold">73.91%</span></div>
+                                <div class="flex items-center gap-2"><span class="text-xs font-bold w-6">RF</span><div class="bg-slate-300 h-3 flex-grow rounded"><div class="bg-indigo-500 h-full rounded" style="width: 77.78%"></div></div><span class="font-mono text-sm font-bold text-indigo-600">77.78%</span></div>
+                            </div>
+                            <p class="text-xs text-slate-600">Es la media armónica entre Precision y Recall. <strong>Se usa porque proporciona un balance</strong>. Si un modelo tiene mucho Recall pero pésima Precision, el F1-Score lo penalizará, dándonos una métrica única más realista.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- C. Curva ROC y Análisis Comparativo -->
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                    <!-- ROC Curve -->
+                    <div class="bg-slate-900 rounded-xl p-6 relative overflow-hidden shadow-lg">
+                        <h4 class="font-bold text-white mb-4 text-center">C. Curva ROC y AUC</h4>
+                        <div class="relative w-full aspect-video bg-slate-800 rounded border border-slate-700 p-4">
+                            <span class="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 text-[8px] text-slate-400 uppercase tracking-widest">Verdaderos Positivos</span>
+                            <span class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[8px] text-slate-400 uppercase tracking-widest">Falsos Positivos</span>
+                            
+                            <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                                <line x1="0" y1="100" x2="100" y2="0" stroke="#475569" stroke-width="1" stroke-dasharray="4" />
+                                <path d="M0,100 Q20,30 100,0" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" class="roc-curve" />
+                                <path d="M0,100 C5,10 20,5 100,0" fill="none" stroke="#6366f1" stroke-width="3" stroke-linecap="round" class="roc-curve" />
+                            </svg>
+                            
+                            <div class="absolute bottom-4 right-4 bg-slate-900/90 p-2 rounded border border-slate-700 text-xs">
+                                <div class="flex items-center gap-2 mb-1"><span class="w-3 h-1 bg-indigo-500 rounded"></span><span class="text-white font-mono">RF AUC: 0.89</span></div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-1 bg-slate-400 rounded"></span><span class="text-white font-mono">DT AUC: 0.85</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Análisis Comparativo -->
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-2 border-b pb-2">D. Análisis Comparativo</h3>
+                        <h4 class="font-bold text-indigo-700 text-lg mb-2">Ganador: Random Forest</h4>
+                        <p class="text-slate-600 text-sm mb-3">
+                            El <strong>Random Forest tuvo un mejor desempeño general</strong> en todas las métricas evaluadas. 
+                        </p>
+                        <p class="text-slate-600 text-sm mb-3">
+                            <strong>¿Por qué?</strong> El Árbol de Decisión individual (limitado a <code>max_depth=3</code>) es interpretable pero menos preciso. El Random Forest, al promediar el resultado de 100 árboles, logra una mejor generalización de los datos.
+                        </p>
+                        <p class="text-slate-600 text-sm">
+                            Su superioridad se nota fuertemente en el <strong>Recall (75.68% vs 68.92%)</strong> y en el <strong>AUC (0.89 vs 0.85)</strong>, demostrando un mayor poder discriminativo para distinguir entre las clases sin caer en el sobreajuste.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 5. CONCLUSIONES -->
+        <section class="bg-slate-900 text-white rounded-2xl p-8 shadow-sm border-l-8 border-l-amber-400">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-12 h-12 rounded-full bg-amber-400 text-amber-900 flex items-center justify-center text-xl font-bold">5</div>
+                <h2 class="text-2xl font-bold font-serif-title text-white">Conclusiones (20%)</h2>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-bold text-amber-400 mb-2 flex items-center"><i class="fa-solid fa-list-check mr-2"></i> Hallazgos Principales</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            Se confirmó que variables como el <strong>Sexo</strong> y la <strong>Clase (Pclass)</strong> son los predictores más fuertes de supervivencia. Además, el uso de métodos de ensamble (Random Forest) superó significativamente a los modelos básicos, demostrando la eficacia de la "sabiduría de la multitud" en Machine Learning.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-amber-400 mb-2 flex items-center"><i class="fa-solid fa-scale-balanced mr-2"></i> Importancia de las Métricas</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            Aprendimos que el <em>Accuracy</em> no cuenta toda la historia. La elección de métricas como el <strong>Recall</strong> y el <strong>F1-Score</strong> permitió una evaluación real y balanceada del modelo, castigando los falsos negativos que serían críticos en un escenario real de rescate.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="font-bold text-white mb-4 border-b border-slate-600 pb-2">Limitaciones y Mejoras Futuras</h3>
+                    <ul class="space-y-4 text-sm text-slate-300">
+                        <li class="flex items-start gap-3">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-400 mt-1"></i>
+                            <div>
+                                <strong>Limitación:</strong> El dataset original presentaba muchos datos faltantes (especialmente en edades) y un desbalance en las clases objetivo.
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fa-solid fa-gears text-blue-400 mt-1"></i>
+                            <div>
+                                <strong>Mejora 1 (Optimización):</strong> Implementar <code>GridSearchCV</code> para encontrar matemáticamente la mejor combinación de hiperparámetros (ej. <code>min_samples_split</code>, <code>max_features</code>) para empujar la exactitud por encima del 85%.
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fa-solid fa-flask text-emerald-400 mt-1"></i>
+                            <div>
+                                <strong>Mejora 2 (Feature Engineering):</strong> Crear nuevas variables a partir de los datos existentes. Por ejemplo, combinar "SibSp" y "Parch" para crear una variable de <strong>"Tamaño de Familia"</strong>, o extraer títulos nobiliarios/sociales de la columna del Nombre.
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. SIMULADOR INTERACTIVO (EXTRAS) -->
+        <section class="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-8 shadow-2xl border-t-8 border-yellow-400 text-white mt-12">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="bg-yellow-400 text-yellow-900 w-14 h-14 flex items-center justify-center rounded-2xl text-2xl shadow-sm"><i class="fa-solid fa-gamepad"></i></div>
+                <div>
+                    <h2 class="text-3xl font-bold font-serif-title text-white">Extra: Simulador de Predicción</h2>
+                    <p class="text-slate-300 text-sm mt-1">Ingresa datos ficticios y observa las predicciones heurísticas basadas en los modelos entrenados.</p>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 bg-slate-800/80 p-6 rounded-2xl border border-slate-700">
+                
+                <!-- Formulario -->
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-300 mb-2"><i class="fa-solid fa-venus-mars mr-2 text-blue-400"></i> Variable: Sex (Género)</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="sim-sex" value="female" class="peer sr-only" checked>
+                                <div class="text-center p-3 rounded-xl border border-slate-600 bg-slate-700 peer-checked:bg-pink-600 peer-checked:border-pink-400 transition-colors shadow-sm">
+                                    <i class="fa-solid fa-person-dress text-2xl mb-1"></i><br><span class="font-semibold text-sm">Femenino (1)</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="sim-sex" value="male" class="peer sr-only">
+                                <div class="text-center p-3 rounded-xl border border-slate-600 bg-slate-700 peer-checked:bg-blue-600 peer-checked:border-blue-400 transition-colors shadow-sm">
+                                    <i class="fa-solid fa-person text-2xl mb-1"></i><br><span class="font-semibold text-sm">Masculino (0)</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-slate-300 mb-2"><i class="fa-solid fa-ticket mr-2 text-yellow-400"></i> Variable: Pclass (Clase)</label>
+                        <select id="sim-class" class="w-full bg-slate-700 border border-slate-600 rounded-xl p-3 text-white focus:outline-none focus:border-yellow-400 shadow-sm font-semibold">
+                            <option value="1">1ra Clase (Lujo)</option>
+                            <option value="2">2da Clase (Media)</option>
+                            <option value="3">3ra Clase (Económica)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="flex justify-between text-sm font-bold text-slate-300 mb-2">
+                            <span><i class="fa-solid fa-cake-candles mr-2 text-rose-400"></i> Variable: Age (Edad)</span>
+                            <span id="age-display" class="bg-slate-600 px-2 py-1 rounded text-yellow-400">25 años</span>
+                        </label>
+                        <input type="range" id="sim-age" min="1" max="80" value="25" class="w-full h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer" oninput="document.getElementById('age-display').innerText = this.value + ' años'">
+                    </div>
+
+                    <button onclick="ejecutarSimulacion()" class="w-full bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-amber-900 font-bold py-4 px-6 rounded-xl shadow-lg transition-transform transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 text-lg">
+                        <i class="fa-solid fa-bolt"></i> Ejecutar Modelo Predictivo
+                    </button>
+                </div>
+
+                <!-- Resultados de la simulación -->
+                <div class="bg-slate-900 p-6 rounded-2xl border border-slate-700 shadow-inner flex flex-col justify-center relative min-h-[300px]">
+                    
+                    <!-- Estado inicial -->
+                    <div id="sim-empty" class="text-center text-slate-500">
+                        <i class="fa-solid fa-robot text-5xl mb-4 opacity-50"></i>
+                        <p>Ingresa los parámetros y ejecuta la predicción para comparar los algoritmos en tiempo real.</p>
+                    </div>
+
+                    <!-- Estado de carga (oculto) -->
+                    <div id="sim-loading" class="hidden text-center text-yellow-400 thinking absolute inset-0 flex-col items-center justify-center bg-slate-900/90 z-10 rounded-2xl">
+                        <i class="fa-solid fa-gear fa-spin text-5xl mb-4"></i>
+                        <p class="font-bold tracking-widest uppercase text-sm">Procesando datos...</p>
+                    </div>
+
+                    <!-- Resultados (oculto) -->
+                    <div id="sim-results" class="hidden space-y-6">
+                        
+                        <!-- Resultado Árbol -->
+                        <div class="bg-slate-800 p-4 rounded-xl border-l-4 border-slate-500 relative overflow-hidden">
+                            <h4 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Decision Tree (max_depth=3)</h4>
+                            <div class="flex items-center gap-4">
+                                <div id="dt-icon" class="w-12 h-12 rounded-full flex items-center justify-center text-2xl"></div>
+                                <div>
+                                    <p class="text-slate-400 text-xs">Clasificación Absoluta:</p>
+                                    <p id="dt-text" class="text-xl font-bold"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resultado Random Forest -->
+                        <div class="bg-slate-800 p-4 rounded-xl border-l-4 border-indigo-500 relative overflow-hidden">
+                            <h4 class="text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">Random Forest (n_estimators=100)</h4>
+                            <p class="text-slate-300 text-xs mb-2">Probabilidad de Supervivencia (predict_proba):</p>
+                            
+                            <div class="flex items-center gap-3 mb-1">
+                                <div class="flex-grow bg-slate-700 border border-slate-600 rounded-full h-5 overflow-hidden">
+                                    <div id="rf-bar" class="bg-indigo-500 h-full rounded-full transition-all duration-1000 w-0"></div>
+                                </div>
+                                <span id="rf-prob-text" class="font-bold text-lg w-12 text-right text-white">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Script del Simulador -->
+    <script>
+        function ejecutarSimulacion() {
+            // Mostrar estado de carga
+            document.getElementById('sim-empty').classList.add('hidden');
+            document.getElementById('sim-results').classList.add('hidden');
+            document.getElementById('sim-loading').classList.remove('hidden');
+            document.getElementById('sim-loading').classList.add('flex');
+
+            // Leer valores
+            const pclass = parseInt(document.getElementById('sim-class').value);
+            const sex = document.querySelector('input[name="sim-sex"]:checked').value;
+            const age = parseInt(document.getElementById('sim-age').value);
+
+            // Simulación lógica heurística
+            let dt_survives = false;
+            let rf_prob = 0;
+
+            if (sex === 'female') {
+                if (pclass === 1 || pclass === 2) {
+                    dt_survives = true; 
+                    rf_prob = pclass === 1 ? 96 : 89; 
+                } else {
+                    dt_survives = false; 
+                    rf_prob = age < 15 ? 55 : 45; 
+                }
+            } else { 
+                if (age < 12) { 
+                    if (pclass === 1 || pclass === 2) {
+                        dt_survives = true;
+                        rf_prob = 90;
+                    } else {
+                        dt_survives = false; 
+                        rf_prob = 32;
+                    }
+                } else { 
+                    dt_survives = false; 
+                    if (pclass === 1) {
+                        rf_prob = 34; 
+                    } else if (pclass === 2) {
+                        rf_prob = 15;
+                    } else {
+                        rf_prob = 10;
+                    }
+                }
+            }
+
+            // Simular un tiempo de procesamiento
+            setTimeout(() => {
+                // Ocultar carga, mostrar resultados
+                document.getElementById('sim-loading').classList.add('hidden');
+                document.getElementById('sim-loading').classList.remove('flex');
+                document.getElementById('sim-results').classList.remove('hidden');
+
+                // Actualizar UI del Árbol
+                const dtIconDiv = document.getElementById('dt-icon');
+                const dtText = document.getElementById('dt-text');
+                
+                if (dt_survives) {
+                    dtIconDiv.className = "w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-emerald-100 text-emerald-600";
+                    dtIconDiv.innerHTML = '<i class="fa-solid fa-life-ring"></i>';
+                    dtText.innerText = "Sobrevive (Clase 1)";
+                    dtText.className = "text-xl font-bold text-emerald-400";
+                } else {
+                    dtIconDiv.className = "w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-rose-100 text-rose-600";
+                    dtIconDiv.innerHTML = '<i class="fa-solid fa-skull"></i>';
+                    dtText.innerText = "No sobrevive (Clase 0)";
+                    dtText.className = "text-xl font-bold text-rose-400";
+                }
+
+                // Actualizar UI del Random Forest
+                const rfBar = document.getElementById('rf-bar');
+                const rfProbText = document.getElementById('rf-prob-text');
+
+                // Resetear barra para animación
+                rfBar.style.width = '0%';
+                
+                setTimeout(() => {
+                    rfBar.style.width = rfProbText.innerText = rf_prob + '%';
+                    // Cambiar color de barra según resultado
+                    if (rf_prob >= 50) {
+                        rfBar.className = "bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-1000";
+                        rfProbText.className = "font-bold text-lg w-12 text-right text-emerald-400";
+                    } else {
+                        rfBar.className = "bg-gradient-to-r from-rose-400 to-rose-500 h-full rounded-full transition-all duration-1000";
+                        rfProbText.className = "font-bold text-lg w-12 text-right text-rose-400";
+                    }
+                }, 50);
+
+            }, 800);
+        }
+    </script>
+</body>
+</html>
